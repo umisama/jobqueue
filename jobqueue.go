@@ -6,27 +6,30 @@ import (
 )
 
 var (
-	queues     map[string]chan interface{}
 	configList map[string]queueConfig
 
 	ErrQueueIsExist        error = errors.New("this queue is exist.")
 	ErrFuncIsNotFunction   error = errors.New("c.Func is not function.")
 	ErrContenerIsNotUnique error = errors.New("c.Contener is not unique.")
+
+	ErrQueueNotFound error = errors.New("error queue not found.")
 )
 
 // QueueConfig reprecents configulation for a job queue.
 // MsgContener must unique type in all queues.
 type QueueConfig struct {
 	Name        string
-	Concurrency int
 	Func        interface{}
 	MsgContener interface{}
+	Concurrency int
+	Length      int
 }
 
 type queueConfig struct {
 	Concurrency int
 	Func        interface{}
 	MsgContener reflect.Type
+	Ch          chan interface{}
 }
 
 // SetConfig() sets new QueueConfig
@@ -58,6 +61,7 @@ func setConfig(c QueueConfig) {
 		Concurrency: c.Concurrency,
 		Func:        c.Func,
 		MsgContener: reflect.ValueOf(c.MsgContener).Type(),
+		Ch:          make(chan interface{}, c.Length),
 	}
 }
 
@@ -72,6 +76,5 @@ func SetConfigList(c []QueueConfig) error {
 }
 
 func init() {
-	queues = make(map[string]chan interface{})
 	configList = make(map[string]queueConfig)
 }

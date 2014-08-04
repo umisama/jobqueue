@@ -79,6 +79,5 @@ func TestSetConfigList(t *testing.T) {
 }
 
 func clearutil() {
-	queues     = map[string]chan interface{}{}
 	configList = map[string]queueConfig{}
 }
