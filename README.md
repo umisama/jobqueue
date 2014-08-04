@@ -1,4 +1,4 @@
-# JobQueue
+# JobQueue [![Build Status](https://travis-ci.org/umisama/jobqueue.svg?branch=master)](https://travis-ci.org/umisama/jobqueue)
 A simple job queueing service for golang.
 
 ## status
