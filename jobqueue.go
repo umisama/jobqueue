@@ -42,11 +42,12 @@ const (
 )
 
 // JobInfomation is the infomation of job.
-// Return is job's return value if status is completed.
+// Return is job's return value if status is completed. Error is in failed.
 type JobInfomation struct {
 	Id     string
 	Status JobStatus
 	Result interface{}
+	Error  error
 }
 
 type jobContener struct {
@@ -55,7 +56,7 @@ type jobContener struct {
 }
 
 type Job interface {
-	Run()
+	Run() error
 	Result() interface{}
 }
 

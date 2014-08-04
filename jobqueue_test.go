@@ -9,8 +9,9 @@ type TestJob1 struct {
 	Ch chan struct{}
 }
 
-func (j *TestJob1) Run() {
+func (j *TestJob1) Run() error {
 	j.Ch <- struct{}{}
+	return nil
 }
 
 func (j *TestJob1) Result() interface{}{
@@ -21,8 +22,9 @@ type TestJob2 struct {
 	Ch chan struct{}
 }
 
-func (j *TestJob2) Run() {
+func (j *TestJob2) Run() error {
 	j.Ch <- struct{}{}
+	return nil
 }
 
 func (j *TestJob2) Result() interface{} {

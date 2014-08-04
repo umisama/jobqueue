@@ -16,9 +16,12 @@ func listenAndInvoke(conf queueConfig) {
 		err := invoke(cnt.job)
 		if err != nil {
 			cnt.info.Status = StatusFailed
+			cnt.info.Error = err
 			continue
 		}
 
+		cnt.info.Status = StatusCompleted
+		cnt.info.Result = cnt.job.Result()
 	}
 }
 
@@ -36,6 +39,9 @@ func invoke(job Job)(err error){
 		}
 	}()
 
-	job.Run()
+	err = job.Run()
+	if err != nil {
+		return err
+	}
 	return nil
 }

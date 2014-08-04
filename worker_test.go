@@ -10,8 +10,9 @@ type PanicJob struct {
 	val interface{}
 }
 
-func (j *PanicJob) Run() {
+func (j *PanicJob) Run() error {
 	panic(j.val)
+	return nil
 }
 
 func (j *PanicJob) Result() interface{} {
