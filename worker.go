@@ -7,25 +7,36 @@ import (
 
 func listenAndInvoke(conf queueConfig) {
 	for cnt := range conf.Ch {
-		if len(conf.KillCh) != 0 { // this queue was killed.
-			<-conf.KillCh
-			return
-		}
-
-		cnt.info.Status = StatusRunning
-		err := invoke(cnt.job)
-		if err != nil {
-			cnt.info.Status = StatusFailed
-			cnt.info.Error = err
-			continue
-		}
-
-		cnt.info.Status = StatusCompleted
-		cnt.info.Result = cnt.job.Result()
+		listenAndInvokeSub(cnt, conf)
 	}
 }
 
-func invoke(job Job)(err error){
+func listenAndInvokeSub(cnt jobContener, conf queueConfig) {
+	defer func() {
+		if r := recover(); r != nil {
+			return
+		}
+	}()
+
+	if len(conf.KillCh) != 0 { // this queue was killed.
+		<-conf.KillCh
+		return
+	}
+
+	cnt.info.Status = StatusRunning
+	err := invoke(cnt.job)
+	if err != nil {
+		cnt.info.Status = StatusFailed
+		cnt.info.Error = err
+		return
+	}
+
+	cnt.info.Status = StatusCompleted
+	cnt.info.Result = cnt.job.Result()
+	return
+}
+
+func invoke(job Job) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch rt := r.(type) {
