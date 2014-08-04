@@ -30,8 +30,31 @@ type queueConfig struct {
 	Concurrency int
 	Func        reflect.Value
 	MsgContener reflect.Type
-	Ch          chan reflect.Value
+	Ch          chan jobContener
 	KillCh      chan struct{}
+}
+
+// JobStatus reprecents status of a job.
+type JobStatus int
+
+const (
+	StatusWaiting = JobStatus(iota)
+	StatusRunning
+	StatusCompleted
+	StatusFailed
+)
+
+// JobInfomation is the infomation of job.
+// Return is job's return value if status is completed.
+type JobInfomation struct {
+	Id     string
+	Status JobStatus
+	Return interface{}
+}
+
+type jobContener struct {
+	job  reflect.Value
+	info *JobInfomation
 }
 
 // SetConfig sets new configulation for job queue.
@@ -67,7 +90,7 @@ func setConfig(c QueueConfig) {
 		Concurrency: c.Concurrency,
 		Func:        reflect.ValueOf(c.Func),
 		MsgContener: reflect.ValueOf(c.MsgContener).Type(),
-		Ch:          make(chan reflect.Value, c.Length),
+		Ch:          make(chan jobContener, c.Length),
 		KillCh:      make(chan struct{}, 1),
 	}
 	configList[c.Name] = conf
@@ -89,7 +112,7 @@ func SetConfigList(c []QueueConfig) error {
 	return nil
 }
 
-func Publish(job interface{}) error {
+func Publish(job interface{}) (*JobInfomation, error) {
 	jobval := reflect.ValueOf(job)
 
 	for _, conf := range configList {
@@ -98,16 +121,25 @@ func Publish(job interface{}) error {
 		}
 	}
 
-	return ErrQueueNotFound
+	return nil, ErrQueueNotFound
 }
 
-func publish(conf queueConfig, job reflect.Value) error {
+func publish(conf queueConfig, job reflect.Value) (*JobInfomation, error) {
 	if len(conf.Ch) == cap(conf.Ch) {
-		return ErrJobQueueIsFull
+		return nil, ErrJobQueueIsFull
 	}
 
-	conf.Ch <- job
-	return nil
+	info := &JobInfomation{
+		Id:     uuid(),
+		Status: StatusWaiting,
+		Return: nil,
+	}
+
+	conf.Ch <- jobContener{
+		job:  job,
+		info: info,
+	}
+	return info, nil
 }
 
 func Kill(name string) error {
