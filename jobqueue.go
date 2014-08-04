@@ -31,6 +31,7 @@ type queueConfig struct {
 	Func        reflect.Value
 	MsgContener reflect.Type
 	Ch          chan reflect.Value
+	KillCh      chan struct{}
 }
 
 // SetConfig sets new configulation for job queue.
@@ -62,15 +63,18 @@ func setConfig(c QueueConfig) {
 		c.Length = 100 // default
 	}
 
-	configList[c.Name] = queueConfig{
+	conf := queueConfig{
 		Concurrency: c.Concurrency,
 		Func:        reflect.ValueOf(c.Func),
 		MsgContener: reflect.ValueOf(c.MsgContener).Type(),
 		Ch:          make(chan reflect.Value, c.Length),
+		KillCh:      make(chan struct{}, 1),
 	}
+	configList[c.Name] = conf
 
-	for i:=0; i<c.Concurrency; i++ {
-		go listenAndInvoke(c.Name)
+	// run worker
+	for i := 0; i < c.Concurrency; i++ {
+		go listenAndInvoke(conf)
 	}
 }
 
@@ -103,6 +107,17 @@ func publish(conf queueConfig, job reflect.Value) error {
 	}
 
 	conf.Ch <- job
+	return nil
+}
+
+func Kill(name string) error {
+	c, ok := configList[name]
+	if !ok {
+		return ErrQueueNotFound
+	}
+
+	c.KillCh <- struct{}{}
+	delete(configList, name)
 	return nil
 }
 
