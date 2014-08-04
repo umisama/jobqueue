@@ -1,15 +1,41 @@
 package jq
 
+import (
+	"errors"
+	"fmt"
+)
+
 func listenAndInvoke(conf queueConfig) {
-	for jobcnt := range conf.Ch {
+	for cnt := range conf.Ch {
 		if len(conf.KillCh) != 0 { // this queue was killed.
 			<-conf.KillCh
 			return
 		}
 
-		jobcnt.info.Status = StatusRunning
-		jobcnt.job.Run()
-		jobcnt.info.Status = StatusCompleted
-		jobcnt.info.Result = jobcnt.job.Result()
+		cnt.info.Status = StatusRunning
+		err := invoke(cnt.job)
+		if err != nil {
+			cnt.info.Status = StatusFailed
+			continue
+		}
+
 	}
+}
+
+func invoke(job Job)(err error){
+	defer func() {
+		if r := recover(); r != nil {
+			switch rt := r.(type) {
+			case error:
+				err = rt
+			case string:
+				err = errors.New(rt)
+			default:
+				err = fmt.Errorf("%v", rt)
+			}
+		}
+	}()
+
+	job.Run()
+	return nil
 }
