@@ -5,42 +5,54 @@ import (
 	"time"
 )
 
+type TestJob1 struct {
+	Ch chan struct{}
+}
+
+func (j *TestJob1) Run() {
+	j.Ch <- struct{}{}
+}
+
+func (j *TestJob1) Result() interface{}{
+	return nil
+}
+
+type TestJob2 struct {
+	Ch chan struct{}
+}
+
+func (j *TestJob2) Run() {
+	j.Ch <- struct{}{}
+}
+
+func (j *TestJob2) Result() interface{} {
+	return nil
+}
+
 func TestSetConfig(t *testing.T) {
 	type testcase struct {
 		in     QueueConfig
 		expect error
 	}
-	testfunc := func() {}
 	cases := []testcase{{
 		in: QueueConfig{
 			Name:        "testname",
 			Concurrency: 1,
-			Func:        testfunc,
-			MsgContener: testcase{}, // as contener sample
+			JobContener: &TestJob1{},
 		},
 		expect: nil,
 	}, {
 		in: QueueConfig{
-			Name:        "testnamehoge",
-			Concurrency: 1,
-			Func:        "this is not function",
-			MsgContener: testcase{}, // as contener sample
-		},
-		expect: ErrFuncIsNotFunction,
-	}, {
-		in: QueueConfig{
 			Name:        "testname",
 			Concurrency: 1,
-			Func:        testfunc,
-			MsgContener: testcase{},
+			JobContener: &TestJob1{},
 		},
 		expect: ErrQueueIsExist,
 	}, {
 		in: QueueConfig{
 			Name:        "testname2",
 			Concurrency: 1,
-			Func:        testfunc,
-			MsgContener: testcase{},
+			JobContener: &TestJob1{},
 		},
 		expect: ErrContenerIsNotUnique,
 	}}
@@ -61,18 +73,15 @@ func TestSetConfigList(t *testing.T) {
 		in     []QueueConfig
 		expect error
 	}
-	testfunc := func() {}
 	cases := []testcase{{
 		in: []QueueConfig{{
 			Name:        "testname",
 			Concurrency: 1,
-			Func:        testfunc,
-			MsgContener: testcase{}, // as contener sample
+			JobContener: &TestJob1{},
 		}, {
 			Name:        "testname2",
 			Concurrency: 1,
-			Func:        testfunc,
-			MsgContener: struct{}{},
+			JobContener: &TestJob2{},
 		}},
 		expect: nil,
 	}}
@@ -88,34 +97,23 @@ func TestSetConfigList(t *testing.T) {
 }
 
 func TestPublish(t *testing.T) {
-	// jobs for unit testing
-	type TestJobTypeDummy struct{}
-	type TestJobType struct{
-		test chan struct{}
-	}
-	testfunc := func(j TestJobType) {
-		time.Sleep(1*time.Second)
-		j.test <- struct{}{}
-	}
-
 	// initialize
 	SetConfig(QueueConfig{
 		Name:        "test1",
-		Func:        testfunc,
-		MsgContener: TestJobType{},
+		JobContener: &TestJob1{},
 		Concurrency: 1,
 		Length:      1,
 	})
 
 	// returns error if job is not registerd.
-	_, err := Publish(TestJobTypeDummy{})
+	_, err := Publish(&TestJob2{})
 	if err != ErrQueueNotFound {
 		t.Fail()
 	}
 
 	// returns info if job is registerd.
 	ch := make(chan struct{}, 0)
-	info, err := Publish(TestJobType{ch})
+	info, err := Publish(&TestJob1{ch})
 	if err != nil {
 		t.Fail()
 	}
@@ -124,15 +122,14 @@ func TestPublish(t *testing.T) {
 	}
 
 	// returns error if queue is full
-	Publish(TestJobType{ch})
-	_, err = Publish(TestJobType{ch})
+	_, err = Publish(&TestJob1{ch})
 	if err != ErrJobQueueIsFull {
 		t.Fail()
 	}
 
 	// must run(1st called job)
 	select {
-	case <- time.After(10 *time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fail()
 	case <-ch:
 		t.Log("ok")

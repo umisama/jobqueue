@@ -9,7 +9,6 @@ var (
 	configList map[string]queueConfig
 
 	ErrQueueIsExist        error = errors.New("this queue is exist.")
-	ErrFuncIsNotFunction   error = errors.New("c.Func is not function.")
 	ErrContenerIsNotUnique error = errors.New("c.Contener is not unique.")
 
 	ErrQueueNotFound  error = errors.New("queue not found.")
@@ -17,19 +16,17 @@ var (
 )
 
 // QueueConfig reprecents configulation for a job queue.
-// MsgContener and Name must unique type in all queues.
+// JobContener and Name must unique type in all queues.
 type QueueConfig struct {
 	Name        string
-	Func        interface{}
-	MsgContener interface{}
+	JobContener Job
 	Concurrency int
 	Length      int
 }
 
 type queueConfig struct {
 	Concurrency int
-	Func        reflect.Value
-	MsgContener reflect.Type
+	Contener    reflect.Type
 	Ch          chan jobContener
 	KillCh      chan struct{}
 }
@@ -49,12 +46,17 @@ const (
 type JobInfomation struct {
 	Id     string
 	Status JobStatus
-	Return interface{}
+	Result interface{}
 }
 
 type jobContener struct {
-	job  reflect.Value
+	job  Job
 	info *JobInfomation
+}
+
+type Job interface {
+	Run()
+	Result() interface{}
 }
 
 // SetConfig sets new configulation for job queue.
@@ -64,32 +66,27 @@ func SetConfig(c QueueConfig) error {
 		return ErrQueueIsExist
 	}
 
-	// is c.Func function?
-	if reflect.ValueOf(c.Func).Kind() != reflect.Func {
-		return ErrFuncIsNotFunction
-	}
-
 	// is contener unique?
-	cntval := reflect.ValueOf(c.MsgContener)
 	for _, v := range configList {
-		if v.MsgContener == cntval.Type() {
+		if v.Contener == reflect.ValueOf(c.JobContener).Type() {
 			return ErrContenerIsNotUnique
 		}
 	}
 
-	setConfig(c)
-	return nil
+	return setConfig(c)
 }
 
-func setConfig(c QueueConfig) {
+func setConfig(c QueueConfig) error {
 	if c.Length <= 0 {
 		c.Length = 100 // default
+	}
+	if c.Concurrency <= 0 {
+		c.Concurrency = 3 // default
 	}
 
 	conf := queueConfig{
 		Concurrency: c.Concurrency,
-		Func:        reflect.ValueOf(c.Func),
-		MsgContener: reflect.ValueOf(c.MsgContener).Type(),
+		Contener:    reflect.ValueOf(c.JobContener).Type(),
 		Ch:          make(chan jobContener, c.Length),
 		KillCh:      make(chan struct{}, 1),
 	}
@@ -99,6 +96,8 @@ func setConfig(c QueueConfig) {
 	for i := 0; i < c.Concurrency; i++ {
 		go listenAndInvoke(conf)
 	}
+
+	return nil
 }
 
 // SetConfigList sets new configulations for job queue with c.
@@ -112,19 +111,17 @@ func SetConfigList(c []QueueConfig) error {
 	return nil
 }
 
-func Publish(job interface{}) (*JobInfomation, error) {
-	jobval := reflect.ValueOf(job)
-
+func Publish(job Job) (*JobInfomation, error) {
 	for _, conf := range configList {
-		if conf.MsgContener == jobval.Type() {
-			return publish(conf, jobval)
+		if conf.Contener == reflect.ValueOf(job).Type() {
+			return publish(conf, job)
 		}
 	}
 
 	return nil, ErrQueueNotFound
 }
 
-func publish(conf queueConfig, job reflect.Value) (*JobInfomation, error) {
+func publish(conf queueConfig, job Job) (*JobInfomation, error) {
 	if len(conf.Ch) == cap(conf.Ch) {
 		return nil, ErrJobQueueIsFull
 	}
@@ -132,7 +129,7 @@ func publish(conf queueConfig, job reflect.Value) (*JobInfomation, error) {
 	info := &JobInfomation{
 		Id:     uuid(),
 		Status: StatusWaiting,
-		Return: nil,
+		Result: nil,
 	}
 
 	conf.Ch <- jobContener{
