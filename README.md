@@ -9,7 +9,6 @@ in progress...
 ```
 go get github.com/umisama/jobqueue
 ```
-```
 
 ## license
 under the MIT license.
