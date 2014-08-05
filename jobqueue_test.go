@@ -10,6 +10,7 @@ type TestJob1 struct {
 }
 
 func (j *TestJob1) Run() error {
+	time.Sleep(100*time.Millisecond)
 	j.Ch <- struct{}{}
 	return nil
 }
@@ -23,6 +24,7 @@ type TestJob2 struct {
 }
 
 func (j *TestJob2) Run() error {
+	time.Sleep(100*time.Millisecond)
 	j.Ch <- struct{}{}
 	return nil
 }
