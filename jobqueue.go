@@ -48,6 +48,7 @@ type JobInfomation struct {
 	Status JobStatus
 	Result interface{}
 	Error  error
+	Done   chan struct{}
 }
 
 type jobContener struct {
@@ -131,6 +132,8 @@ func publish(conf queueConfig, job Job) (*JobInfomation, error) {
 		Id:     uuid(),
 		Status: StatusWaiting,
 		Result: nil,
+		Error:  nil,
+		Done:   make(chan struct{}, 0),
 	}
 
 	conf.Ch <- jobContener{
