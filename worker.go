@@ -25,9 +25,7 @@ func listenAndInvokeSub(cnt jobContener, conf queueConfig) {
 
 	cnt.info.Status = StatusRunning
 	err := invoke(cnt.job)
-	println("done")
 	cnt.info.Done <- struct{}{}
-	println("donedone")
 	if err != nil {
 		cnt.info.Status = StatusFailed
 		cnt.info.Error = err

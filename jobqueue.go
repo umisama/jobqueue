@@ -133,9 +133,8 @@ func publish(conf queueConfig, job Job) (*JobInfomation, error) {
 		Status: StatusWaiting,
 		Result: nil,
 		Error:  nil,
-		Done:   make(chan struct{}, 0),
+		Done:   make(chan struct{}, 1),
 	}
-
 	conf.Ch <- jobContener{
 		job:  job,
 		info: info,
